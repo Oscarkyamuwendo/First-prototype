@@ -42,3 +42,18 @@ class TourImage(Base):
     tour_id = Column(Integer, ForeignKey("tours.id"))
     image_url = Column(String(200))
     is_primary = Column(Boolean, default=False)
+    
+class Booking(Base):
+    __tablename__ = "bookings"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    tour_id = Column(Integer, ForeignKey("tours.id"))
+    adults = Column(Integer)
+    kids = Column(Integer)
+    tour_date = Column(DateTime)
+    total_price = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user= relationship("User", backref="bookings")
+    tour= relationship("Tour", backref="bookings")
+    payment_method = Column(String(20))
+    payment_id = Column(String(50))
