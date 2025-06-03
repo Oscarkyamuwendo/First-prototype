@@ -64,10 +64,10 @@ async def signup(request: Request, db: Session = Depends(get_db)):
     full_name = form.get("full_name")
     
     if not all([email, password, full_name]):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="All fields are required")
+        return templates.TemplateResponse("signup.html", {"request": request, "error": "Please fill in all fields"})
     
     if db.query(User).filter(User.email == email).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+        return templates.TemplateResponse("signup.html", {"request": request, "error": "Email already exists"})
     
     hashed_password = hash_password(password)
     
@@ -90,7 +90,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
     
     if not user or not verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid email or password"})
     
     session_id = create_session(db, user.id)
     
@@ -110,7 +110,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
 @router.get('/admin/dashboard', response_class=HTMLResponse)
 async def admin_dashboard(request: Request, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_admin)):
     if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Not authorized to access this page")
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     tours=db.query(Tour).all()
     return templates.TemplateResponse("admin/dashboard.html", {"request": request, "user": user, "tours": tours})
 
@@ -129,7 +129,8 @@ async def create_tour(
     try:
         # Validate minimum requirements
         if not images:
-            raise HTTPException(status_code=400, detail="At least one image is required")
+            request.session['error'] = "At least one image is required"
+            return RedirectResponse(url="/admin/tours/create", status_code=303)
 
         # Create tour
         new_tour = Tour(
@@ -195,7 +196,11 @@ async def update_tour(request: Request, tour_id: int, db: Session = Depends(get_
     tour = db.query(Tour).filter(Tour.id == tour_id).first()
     
     if not tour:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
+        return templates.TemplateResponse("admin/edit_tour.html", {
+            "request": request,
+            "error": "Tour not found",
+            "tour_id": tour_id
+        })
     
     if title:
         tour.title = title
@@ -390,7 +395,7 @@ async def book_tour(
     # Validate tour exists
     tour = db.query(Tour).options(joinedload(Tour.images)).filter(Tour.id == tour_id).first()
     if not tour:
-        raise HTTPException(status_code=404, detail="Tour not found")
+        return RedirectResponse(url="/tours", status_code=status.HTTP_303_SEE_OTHER)
 
     # Add today's date for date input validation
     today = datetime.now().date().isoformat()
@@ -409,6 +414,7 @@ async def process_booking(
     adults: int = Form(...),
     kids: int = Form(...),
     tour_date: str = Form(...),
+    tour_type: str = Form('normal'),#Setting the default tour type to 'normal'
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
@@ -435,6 +441,13 @@ async def process_booking(
 
         # Calculate total price
         total_price = (adults + kids) * tour.price
+        
+        #Adding private tour price adjustment
+        if tour_type == 'private':
+            total_price *= 1.35  # 35% increase for private tours
+            request.session['tour_type'] = 'private'
+        else:
+            request.session['tour_type'] = 'normal' # Making the tour type normal by default    
 
         # Store booking in session
         request.session['booking'] = {
@@ -671,6 +684,8 @@ async def payment_page(
             "total_price": booking["total_price"],
             "tour_title": tour.title,
             "tour_id": tour.id,
+            "is_private":booking.get("tour_type") == "private",
+            "base_price": tour.price,
             "paypal_client_id": os.getenv("PAYPAL_CLIENT_ID"),
             "stripe_public_key": os.getenv("STRIPE_PUBLIC_KEY"),
             "paypal_env": os.getenv("PAYPAL_MODE", "sandbox")
