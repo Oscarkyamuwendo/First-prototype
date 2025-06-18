@@ -18,6 +18,9 @@ from datetime import timedelta
 from fastapi import File, UploadFile
 from sqlalchemy.orm import joinedload
 from fastapi.responses import JSONResponse
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
 
 #from app.database import Sessionlocal as DBSession
 
@@ -106,6 +109,58 @@ async def logout(request: Request, db: Session = Depends(get_db)):
     response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     response.delete_cookie(key="auth_session_id")
     return response   
+
+
+@router.post("/auth/google")
+async def google_auth(
+    request: Request,
+    token: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verify Google token
+        idinfo = id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            os.getenv("212860786434-602ef4v4jdkaeg4mqs866calqr0ku88p.apps.googleusercontent.com")
+        )
+
+        # Check if user exists
+        user = db.query(User).filter(User.email == idinfo['email']).first()
+        
+        if not user:
+            # Create new user
+            user = User(
+                email=idinfo['email'],
+                full_name=idinfo.get('name', ''),
+                google_id=idinfo['sub']
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        # Create session (using your existing session system)
+        session_id = create_session(db, user.id)
+        
+        response = RedirectResponse(url="/tours", status_code=status.HTTP_302_FOUND)
+        response.set_cookie(
+            key="auth_session_id",
+            value=session_id,
+            httponly=True,
+            max_age=1800,
+            samesite="Lax",
+            path="/"
+        )
+        return response
+
+    except ValueError as e:
+        # Invalid token
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "Invalid Google login"},
+            status_code=401
+        )
+
     
 @router.get('/admin/dashboard', response_class=HTMLResponse)
 async def admin_dashboard(request: Request, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_admin)):
