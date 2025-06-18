@@ -221,24 +221,65 @@ async def update_tour(request: Request, tour_id: int, db: Session = Depends(get_
     return RedirectResponse(url="/admin/dashboard", status_code=status.HTTP_302_FOUND)
 
 #delete tour
+# @router.post('/admin/tours/delete/{tour_id}', response_class=HTMLResponse)
+# async def delete_tour(request: Request, tour_id: int, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_admin)):
+#     if not user.is_admin:
+#         raise HTTPException(status_code=403, detail="Not authorized to access this page")
+    
+#     tour = db.query(Tour).filter(Tour.id == tour_id).first()
+
+#     if not tour:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
+    
+#     # Delete related images first
+#     db.query(TourImage).filter(TourImage.tour_id == tour.id).delete()
+
+#     db.delete(tour)
+#     db.commit()
+
+#     return RedirectResponse(url="/admin/dashboard", status_code=status.HTTP_302_FOUND)
+
 @router.post('/admin/tours/delete/{tour_id}', response_class=HTMLResponse)
-async def delete_tour(request: Request, tour_id: int, db: Session = Depends(get_db), user: Optional[User] = Depends(get_current_admin)):
+async def delete_tour(
+    request: Request,
+    tour_id: int,
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_current_admin)
+):
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to access this page")
     
     tour = db.query(Tour).filter(Tour.id == tour_id).first()
 
     if not tour:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tour not found")
+        raise HTTPException(status_code=404, detail="Tour not found")
     
-    # Delete related images first
+    # Get related images before deleting
+    images = db.query(TourImage).filter(TourImage.tour_id == tour.id).all()
+
+    for img in images:
+        # Extract filename from image_url
+        # URL format: "/static/uploads/filename.jpg"
+        filename = img.image_url.split("/")[-1]
+        image_path = os.path.join("static", "uploads", filename)
+        
+        if os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+                print(f"Deleted file: {image_path}")
+            except Exception as e:
+                print(f"Error deleting file {image_path}: {str(e)}")
+        else:
+            print(f"File not found: {image_path}")
+
+    # Delete image records from DB
     db.query(TourImage).filter(TourImage.tour_id == tour.id).delete()
 
+    # Delete the tour itself
     db.delete(tour)
     db.commit()
 
     return RedirectResponse(url="/admin/dashboard", status_code=status.HTTP_302_FOUND)
-
 ## edit tour
 
 @router.get('/admin/tours/edit/{tour_id}', response_class=HTMLResponse)
