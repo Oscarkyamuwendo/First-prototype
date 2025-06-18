@@ -58,6 +58,10 @@
         .carousel-indicators [data-bs-target] {
             background-color: #2a9d8f;
         }
+        
+        .btn-group-spacing > * {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -75,8 +79,23 @@
     <div class="container mt-5">
         <h1 class="mb-4 text-center">Discover Our Tours</h1>
         
-        <div class="mb-4 text-center">
+        <div class="mb-4 text-center btn-group-spacing">
             <a href="/" class="btn btn-secondary">Back to Home</a>
+            
+            <!-- Newsletter Subscription Button -->
+            {% if user and user.newsletter_subscribed %}
+                <form action="/user/unsubscribe_newsletter" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-warning">Unsubscribe from Updates</button>
+                </form>
+            {% else %}
+                <form action="/subscribe_newsletter" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-info">
+                        {% if user %}Subscribe for Updates{% else %}Get Tour Updates{% endif %}
+                    </button>
+                </form>
+            {% endif %}
+            
+            <!-- Login/Logout Buttons -->
             {% if user %}
                 <a href="/logout" class="btn btn-light">LOGOUT</a>
             {% else %}
@@ -173,6 +192,12 @@
                 interval: 5000,
                 wrap: true
             });
+        });
+        
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
         });
     </script>
 </body>
