@@ -37,6 +37,29 @@
                         {% if success %}
                         <div class="alert alert-success">{{ success }}</div>
                         {% endif %}
+
+                        <div class="mb-4 text-center">
+                              <div id="g_id_onload"
+                                   data-client_id="{{ google_client_id }}"
+                                   data-context="signin"
+                                   data-ux_mode="popup"
+                                   data-callback="handleGoogleSignIn"
+                                   data-auto_prompt="false">
+                              </div>
+                            
+                              <div class="g_id_signin"
+                                   data-type="standard"
+                                   data-shape="rectangular"
+                                   data-theme="outline"
+                                   data-text="signin_with"
+                                   data-size="large"
+                                   data-logo_alignment="left">
+                              </div>
+                            
+                              <div class="divider d-flex align-items-center my-4">
+                                <p class="text-center fw-bold mx-3 mb-0 text-muted">OR</p>
+                              </div>
+                            </div>
                         
                         <form method="post" action="/login">
                             <div class="mb-3">
@@ -66,7 +89,24 @@
             </div>
         </div>
     </div>
-    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      function handleGoogleSignIn(response) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/auth/google';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'token';
+        input.value = response.credential;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
