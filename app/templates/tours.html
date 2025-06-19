@@ -81,6 +81,12 @@
         
         <div class="mb-4 text-center btn-group-spacing">
             <a href="/" class="btn btn-secondary">Back to Home</a>
+
+            {% if user %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/my-bookings">My Bookings</a>
+                </li>
+            {% endif %}
             
             <!-- Newsletter Subscription Button -->
             {% if user and user.newsletter_subscribed %}
