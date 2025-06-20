@@ -24,6 +24,9 @@ from fastapi import BackgroundTasks,Query
 
 #from app.database import Sessionlocal as DBSession
 
+# Uses the base URL from environment variable or defaults to localhost
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+
 from dotenv import load_dotenv
 load_dotenv()
 router = APIRouter()
@@ -302,7 +305,8 @@ async def forgot_password(request: Request, email: str = Form(...), db: Session 
         }
 
         # Send email with the reset link
-        reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
+       # reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
+        reset_link = f"{BASE_URL.rstrip('/')}/reset-password?token={reset_token}"
         subject = "Forgot Password"
         body = f"Password reset Request, Click here to reset your password: {reset_link}"
         try:
